@@ -1,7 +1,7 @@
-from appJar import gui
-import com_serial as ser
+from virtenv.include.appJar import gui
+import virtenv.include.com_serial as ser
 import webbrowser
-import streamerlsl
+import virtenv.include.streamerlsl
 import json
 
 

@@ -1,4 +1,4 @@
-from appJar import gui
+from virtenv.include.appJar import gui
 
 class GUI():
     
