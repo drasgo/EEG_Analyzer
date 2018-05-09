@@ -2,7 +2,7 @@ from virtenv.include.appJar import gui
 import virtenv.include.com_serial as ser
 import webbrowser
 import os
-#import virtenv.include.streamerlsl
+import virtenv.include.eeg_streamer as lsl_streamer
 import json
 
 
@@ -18,7 +18,7 @@ def page_0(app):
 
     app.addButton("reloadPorts", reload_ports)
 
-    app.addLabel("SelectedPort", "Port: #")
+    app.addLabel("SelectedPort", "Port: Standard")
 
     app.addButton("Type1", select, 0, 3)
     app.addLabel("descr1", label1, 1, 3)
@@ -44,7 +44,7 @@ def do_nothing():
     print("nothing done here")
 
 
-def page_1(app, port="", eeg_chosen="Mu waves"):
+def page_1(app, port=None, eeg_chosen="Mu waves"):
     #lsl=streamerlsl.StreamerLSL(port)
     sub_eeg_settings()
 
@@ -73,6 +73,10 @@ def page_1(app, port="", eeg_chosen="Mu waves"):
     app.addVerticalSeparator(3, 5, rowspan=3)
     app.addVerticalSeparator(0, 2, rowspan=6)
     app.addVerticalSeparator(0, 7, rowspan=6)
+    if port is None or port == "" or port == "Standard":
+        start_eeg()
+    else:
+        start_eeg(port)
 
 
 def external_link(bt):
@@ -88,7 +92,7 @@ def back(bt):
     shift_page(bt, app)
 
 
-def shift_page(bt, page, temp=""):
+def shift_page(bt, page, temp=None):
     if bt == "Type1":
         page.removeAllWidgets()
         page_1(page, port=temp)
@@ -123,7 +127,7 @@ def get_description():
 
 
 def select(lb):
-    shift_page(lb, app, temp=app.getLabel("SelectedPort")[5:])
+    shift_page(lb, app, temp=app.getLabel("SelectedPort")[6:])
 
 
 def port_selected():
@@ -135,9 +139,16 @@ def reload_ports():
     new_ser = ser.serial_ports()
 
     if new_ser.__len__()>0:
-        app.changeOptionBox("Ports", new_ser)
-    else:
-        app.changeOptionBox("Ports", ["NONE"])
+        app.changeOptionBox("Ports:", new_ser)
+
+
+def start_eeg(port=None):
+    print(port)
+    lsl= lsl_streamer.Eeg_Streamer(port=port)
+
+
+def start_NN():
+    print("Start NN..\n")
 
 
 app=gui("Pagina Principale", "800x550")
