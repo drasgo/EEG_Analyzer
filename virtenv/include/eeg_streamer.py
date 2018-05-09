@@ -1,6 +1,6 @@
 import threading
 from collections import OrderedDict
-import virtenv.lib.open_bci_v3 as bci
+import open_bci_v3 as bci
 from pylsl import StreamInfo, StreamOutlet
 import sys
 import random

@@ -1,7 +1,8 @@
 from virtenv.include.appJar import gui
 import virtenv.include.com_serial as ser
 import webbrowser
-import virtenv.include.streamerlsl
+import os
+#import virtenv.include.streamerlsl
 import json
 
 
@@ -53,8 +54,10 @@ def page_1(app, port="", eeg_chosen="Mu waves"):
     app.addLabel("lab11", eeg_chosen, 0, 4)
     app.addButton("?", external_link, 0, 6)
 
-    app.addLabel("description", "ciao", 1, 3, 4, 2)
+    app.addLabel("description", "ciao", 1, 3, 3, 2)
     app.setLabelRelief("description", app.SUNKEN)
+    get_arrow("left")
+    #app.addImage("left arrow", get_arrow("left"))
 
     app.addLabel("Teach", "Teach NN", 3, 3)
     app.addLabel("Teach_RR", "**", 3, 4)
@@ -73,7 +76,12 @@ def page_1(app, port="", eeg_chosen="Mu waves"):
 
 
 def external_link(bt):
-    webbrowser.open("https://google.com")
+    webbrowser.open("https://en.wikipedia.org/wiki/Mu_wave")
+
+
+def get_arrow(oor):
+    temp = "virtenv/resources/"
+    app.addImage(oor+" arrow", os.path.abspath(temp+oor+"_arrow.gif"), 1, 6)
 
 
 def back(bt):
