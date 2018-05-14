@@ -1,5 +1,5 @@
 import threading
-from collections import OrderedDict
+from collections import OrderedDict, deque
 import virtenv.include.open_bci_v3 as bci
 from pylsl import StreamInfo, StreamOutlet
 import sys
@@ -11,7 +11,6 @@ class Eeg_Streamer():
     def __init__(self, port=None):
         self.default_settings = OrderedDict()
         self.current_settings = OrderedDict()
-
         if port is None:
             self.initialize_board(autodetect=True)
         else:
@@ -19,10 +18,10 @@ class Eeg_Streamer():
         self.init_board_settings()
 
 
-    def initialize_board(self, autodetect=False, port=None):
+    def initialize_board(self, autodetect=True, port=None):
         print("Initializing board\n")
 
-        if autodetect:
+        if autodetect and port is None:
             self.board = bci.OpenBCIBoard()
         else:
             self.board = bci.OpenBCIBoard(port=port)
@@ -65,7 +64,7 @@ class Eeg_Streamer():
         except:
             print("LSL Settings Error!\n")
 
-    def create_lsl(self, stream1=None, stream2=None):
+    def create_lsl(self, ):
         random_id = random.randint(0,255)
         # default parameters
         eeg_name = 'openbci_eeg'
@@ -144,6 +143,3 @@ class Eeg_Streamer():
             if (c == '\n'):
                 line = ''
         print("Streaming paused.\n")
-
-    def begin(self):
-        print("Begin\n")

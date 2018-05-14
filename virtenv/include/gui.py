@@ -34,7 +34,8 @@ class GUI(QtGui.QWidget):
   def __init__(self):
     super(GUI, self).__init__()
     self.gui_setup()
-    self.lsl = streamerlsl.StreamerLSL(GUI=True)
+    self.lsl = s
+    amerlsl.StreamerLSL(GUI=True)
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
     

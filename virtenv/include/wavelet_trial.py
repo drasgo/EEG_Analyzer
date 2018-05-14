@@ -9,15 +9,15 @@ from matplotlib import cm
 
 import matplotlib.axes as ax
 
-with open(os.path.abspath("virtenv/bin/mauna.dat")) as o:
-    data = np.loadtxt(os.path.abspath("virtenv/bin/sst_nino3.dat"))
+#with open(os.path.abspath("virtenv/bin/mauna.dat")) as o:
+#    data = np.loadtxt(os.path.abspath("virtenv/bin/sst_nino3.dat"))
 #print (data)
 #dt=0.083333333
 
 x = np.arange(512)
 y =np.sin(2*np.pi*x)
 sampl_per=0.25
-coef, freq = pywt.cwt(data, np.arange(1,10), 'morl', sampl_per)
+coef, freq = pywt.cwt(y, np.arange(1,15.9), 'morl', sampl_per)
 
 
 #plt.matshow(coef)
@@ -26,8 +26,7 @@ X=[]
 Y=[]
 Z=[]
 
-for i in np.arange(len(data)):
-    X.append(i*sampl_per)
+
  #   for j in freq:
  #       k=0
  #       a=np.array(coef)
@@ -39,9 +38,10 @@ pprint.pprint(X)
 
 print("\n\n")
 pprint.pprint(freq)
+print(coef)
 print(len(X), " ", len(freq), " ", len(coef), " ", len(Z))
 
 fig = plt.figure()
-ax = plt.contour(X, freq, coef)
+ax = plt.inferno(coef, freq)
 
 plt.show()
