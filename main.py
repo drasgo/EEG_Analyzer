@@ -16,30 +16,37 @@ def page_0():
     # gui for first page
     port = ser.serial_ports()
 
-    label1, label2, label3=get_description()
-    app.addLabel("Port", "Selecting Ports")
+    label1 = get_description("virtenv/resources/label1.json")
+    label2 = get_description("virtenv/resources/label2.json")
+    label3 = get_description("virtenv/resources/label3.json")
 
-    app.addLabelOptionBox("Ports:", ["Standard"]+port)
+    app.addLabel("Port", "Selecting Ports", 0, 0)
+
+    app.addLabelOptionBox("Ports:", ["Standard"]+port, 1, 0)
     app.setOptionBoxChangeFunction("Ports:", port_selected)
 
-    app.addButton("reloadPorts", reload_ports)
+    app.addButton("R", reload_ports, 1, 1)
 
-    app.addLabel("SelectedPort", "Port: Standard")
+    app.addLabel("SelectedPort", "Port: Standard", 3, 0)
 
-    app.addButton("Type1", select, 0, 3)
+    app.addLabelEntry("Name: ", 4, 0)
+
+    app.addButton("Type1", lambda: select(lb="Type1", nome=app.getEntry("Name: ")), 0, 3)
+    app.setButton("Type1", "Mu Waves")
     app.addLabel("descr1", label1, 1, 3)
 
     app.addButton("Type2", do_nothing, 0, 5)
     app.setButtonState("Type2", "disabled")
     app.addLabel("descr2", label2, 1, 5)
 
-    app.addButton("Type3",do_nothing, 0, 7)
+    app.addButton("Type3", do_nothing, 0, 7)
     app.setButtonState("Type3", "disabled")
     app.addLabel("descr3", label3, 1, 7)
 
     app.addVerticalSeparator(0, 2, rowspan=5)
     app.addVerticalSeparator(0, 4, rowspan=5)
     app.addVerticalSeparator(0, 6, rowspan=5)
+    app.addVerticalSeparator(0, 8, rowspan=5)
 
     app.setLabelRelief("descr1", app.SUNKEN)
     app.setLabelRelief("descr2", app.SUNKEN)
@@ -50,7 +57,7 @@ def do_nothing():
     print("nothing done here")
 
 
-def page_1(port=None, eeg_chosen="Mu waves"):
+def page_1(port=None, name="", eeg_chosen="Mu waves"):
 
     try:
         if port is None or port == "" or port == "Standard":
@@ -80,8 +87,8 @@ def page_1(port=None, eeg_chosen="Mu waves"):
 
     app.addLabel("Teach", "Teach NN", 3, 3)
     app.addLabel("Teach_RR", "**", 3, 4)
-    app.addButton("Start Teaching", lambda: start_teaching(lsl), 4, 3)
-    app.addButton("Stop Teaching", stopteach_nn, 4, 4)
+    app.addButton("Start Teaching", lambda: start_teaching(lsl, name), 4, 3)
+    app.addButton("Stop Teaching", lambda: stopteach_nn(lsl), 4, 4)
     app.addButton("Load NN", do_nothing, 5, 3)
     app.addButton("Save NN", do_nothing, 5, 4)
 
@@ -109,10 +116,10 @@ def get_arrow(oor):
     app.addImage(oor+" arrow", os.path.abspath(temp+oor+"_arrow.gif"), 1, 6)
 
 
-def shift_page(bt="", temp=None, err_mess=""):
+def shift_page(bt="", port=None, nome="", err_mess=""):
     if bt == "Type1":
         app.removeAllWidgets()
-        page_1(port=temp)
+        page_1(port=port, name=nome)
 
     elif bt == "Type2":
         page_1(port=app.getLabel("SelectedPort"))
@@ -158,15 +165,14 @@ def sub_eeg_settings(lsl):
     app.stopSubWindow()
 
 
-def get_description():
-    label1 = "description 1\n\n\n\n"
-    label2 = "description 2\n\n\n\n"
-    label3 = "description 3\n\n\n\n"
-    return label1, label2, label3
+def get_description(path=""):
+    with open(os.path.abspath(path)) as op:
+        data = json.load(op)
+    return data
 
 
-def select(lb):
-    shift_page(lb, temp=app.getLabel("SelectedPort")[6:])
+def select(lb, nome=""):
+    shift_page(lb, port=app.getLabel("SelectedPort")[6:], nome=nome)
 
 
 def port_selected():
@@ -181,10 +187,10 @@ def reload_ports():
         app.changeOptionBox("Ports:", new_ser)
 
 
-def start_teaching(lsl):
+def start_teaching(lsl, name):
     global stop_teaching
     stop_teaching = False
-    board_thread = threading.Thread(target=teach_nn(lsl))
+    board_thread = threading.Thread(target=teach_nn(lsl, name))
     board_thread.daemon = True
     board_thread.start()
 
@@ -204,12 +210,16 @@ def init_arrow():
     return ran_choice
 
 
-def show_progress_train(var):
-    temp=app.getTextArea("description")
-    app.setTextArea("description", temp + "\n" + var)
+def show_progress_train(var=None):
+    if var is None:
+        temp = get_description("/virtenv/resources/mu_waves_descr.txt")
+    else:
+        temp = app.getTextArea("description") + "\n" + var
+    app.setTextArea("description", temp)
 
 
-def teach_nn(lsl):
+def teach_nn(lsl, name):
+    show_progress_train("Starting Signal acquisition ...")
     try:
         while stop_teaching is False:
             arrow = init_arrow()
@@ -221,24 +231,41 @@ def teach_nn(lsl):
             stream = resolve_stream("name", "openbci_eeg")
             inlet = StreamInlet(stream[0])
 
+            data = []
             show_progress_train("Acquiring Data ...")
             with time.time() as t1:
                 while (time.time() - t1) < 3:
                     if (time.time() - t1).is_integer():
                         show_progress_train(str(time.time() - t1) + " ...")
-                        data = inlet.pull_sample()
+                        data.append(inlet.pull_sample())
             lsl.stop_streaming()
             show_progress_train("Done!")
 
             show_progress_train("Passing through Wavelet Analisys ...")
             coef, freq = wavelet_analysis(data, lsl.sample_rate)
             show_progress_train("Done!")
-
-            train_nn(coef, freq, arrow)
+            show_progress_train("Saving current sample ...")
+            nome_file=save_sample(coef, freq, name, lsl.eeg_channels)
     except:
         err_page("Error training the Neural Network!")
 
+    show_progress_train("Finishing Signal acquisition ...")
     stopteach_nn()
+    train_nn(coef, freq, arrow)
+
+
+def save_sample(coef, freq, name, channels = 8):
+    path_name = "virtenv/resources/"+name+"_data.json"
+    save = i[]
+    save.append("Name:" + name)
+    for j in np.arange(0, channels):
+        save.append("Channel:" + str(j))
+        for i in np.arange(0, len(freq)-1):
+            save.append("Frequency:" + freq[j][i])
+            save.append("Data:"+coef[j][i])
+    with open(os.path.abspath(path_name)) as op:
+        json.dump(save, op, indent=4, separators={",", ":"})
+    return path_name
 
 
 def wavelet_analysis(data, sample_rate):
@@ -252,8 +279,8 @@ def wavelet_analysis(data, sample_rate):
             for k in temp_coef[j]:
                 if temp_coef[j][k] < threshold:
                     temp_coef[j][k] = 0
-        coef += temp_coef
-        freq += temp_freq
+        coef.append(temp_coef)
+        freq.append(temp_freq)
     return coef, freq
 
 
@@ -274,9 +301,10 @@ def train_nn(coef, freq, arrow):
     print()
 
 
-def stopteach_nn(bt):
+def stopteach_nn(lsl):
     global stop_teaching
     stop_teaching = True
+    lsl.cleanUp()
 
 
 def start_nn():
@@ -290,7 +318,7 @@ def stop_nn():
 
 stop_teaching = False
 stop_working = False
-app = gui("Pagina Principale", "800x550")
+app = gui("Pagina Principale", "1000x550")
 app.setResizable(False)
 page_0()
 app.go()

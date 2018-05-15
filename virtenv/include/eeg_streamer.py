@@ -1,5 +1,5 @@
 import threading
-from collections import OrderedDict, deque
+from collections import OrderedDict
 import virtenv.include.open_bci_v3 as bci
 from pylsl import StreamInfo, StreamOutlet
 import sys
@@ -16,7 +16,6 @@ class Eeg_Streamer():
         else:
             self.initialize_board(port=port)
         self.init_board_settings()
-
 
     def initialize_board(self, autodetect=True, port=None):
         print("Initializing board\n")
