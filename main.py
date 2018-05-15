@@ -11,14 +11,22 @@ import random
 from pylsl import StreamInlet, resolve_stream
 import numpy as np
 
+class Overr_Dictionary(dict):
+    def __getitem__(self, item):
+        try:
+            return dict.__getitem__(self, item)
+        except KeyError:
+            value = self[item] = type(self)()
+            return value
+
 
 def page_0():
     # gui for first page
     port = ser.serial_ports()
 
-    label1 = get_description("virtenv/resources/label1.json")
-    label2 = get_description("virtenv/resources/label2.json")
-    label3 = get_description("virtenv/resources/label3.json")
+    label1 = get_data("virtenv/resources/label1.json")
+    label2 = get_data("virtenv/resources/label2.json")
+    label3 = get_data("virtenv/resources/label3.json")
 
     app.addLabel("Port", "Selecting Ports", 0, 0)
 
@@ -165,7 +173,7 @@ def sub_eeg_settings(lsl):
     app.stopSubWindow()
 
 
-def get_description(path=""):
+def get_data(path=""):
     with open(os.path.abspath(path)) as op:
         data = json.load(op)
     return data
@@ -212,7 +220,7 @@ def init_arrow():
 
 def show_progress_train(var=None):
     if var is None:
-        temp = get_description("/virtenv/resources/mu_waves_descr.txt")
+        temp = get_data("/virtenv/resources/mu_waves_descr.txt")
     else:
         temp = app.getTextArea("description") + "\n" + var
     app.setTextArea("description", temp)
@@ -245,27 +253,32 @@ def teach_nn(lsl, name):
             coef, freq = wavelet_analysis(data, lsl.sample_rate)
             show_progress_train("Done!")
             show_progress_train("Saving current sample ...")
-            nome_file=save_sample(coef, freq, name, lsl.eeg_channels)
+            nome_file=save_samples(coef, freq, name, lsl.eeg_channels)
     except:
         err_page("Error training the Neural Network!")
 
     show_progress_train("Finishing Signal acquisition ...")
     stopteach_nn()
-    train_nn(coef, freq, arrow)
+    train_nn(coef, freq, arrow, nome_file)
 
 
-def save_sample(coef, freq, name, channels = 8):
+def save_samples(coef, freq, name, channels=8):
     path_name = "virtenv/resources/"+name+"_data.json"
-    save = i[]
-    save.append("Name:" + name)
+    data=json.load(path_name)
+    count=data["Sample"]
+    save = Overr_Dictionary(data)
     for j in np.arange(0, channels):
-        save.append("Channel:" + str(j))
-        for i in np.arange(0, len(freq)-1):
-            save.append("Frequency:" + freq[j][i])
-            save.append("Data:"+coef[j][i])
+        save["Sample"]=count+1
+        save[count+1][j]["Frequency"]=freq[j]
+        save[count+1][j]["Data"]=coef[j]
     with open(os.path.abspath(path_name)) as op:
         json.dump(save, op, indent=4, separators={",", ":"})
     return path_name
+
+
+#####Da rivedere il json parsing
+def get_samples(name):
+    get_data(name)
 
 
 def wavelet_analysis(data, sample_rate):
@@ -298,7 +311,7 @@ def signal_to_noise_ratio(data):
 
 
 def train_nn(coef, freq, arrow):
-    print()
+
 
 
 def stopteach_nn(lsl):

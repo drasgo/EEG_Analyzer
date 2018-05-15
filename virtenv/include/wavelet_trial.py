@@ -10,6 +10,13 @@ import json
 import configparser
 import matplotlib.axes as ax
 
+class Vividict(dict):
+    def __getitem__(self, item):
+        try:
+            return dict.__getitem__(self, item)
+        except KeyError:
+            value = self[item] = type(self)()
+            return value
 #with open(os.path.abspath("virtenv/bin/mauna.dat")) as o:
 #    data = np.loadtxt(os.path.abspath("virtenv/bin/sst_nino3.dat"))
 #print (data)
@@ -22,26 +29,36 @@ coef, freq = pywt.cwt(y, np.arange(1,15.9), 'morl', sampl_per)
 row=[]
 config= configparser.ConfigParser()
 
-row=[["ciao", "vv"], ["1", "2"], ["fott", "iti"]]
-dat=[]
-temp = np.array(coef).tolist()
+dat=Vividict()
 temp2 = np.array(freq).tolist()
-dat.append("TOM")
-dat.append("chann:")
+temp = np.array(coef).tolist()
+child=[]
+dat["Chan"]={}
+dat["Chan"]["Frequency"]={}
 for i in np.arange(0, len(temp2)-1):
-   dat.append(str(freq[i])+":"+str(temp[i]))
+    dat["Chan"]["Frequency"]["freq"] = freq[i]
+    for j in x:
+        dat["Chan"]["Frequency"][str(j)] = temp[i][j]
+
+pprint.pprint(dat['Chan']['Frequency'])
 with open("data.json", 'w') as op:
-    a=np.array(coef)
 
     #row.append(np.array(coef).tolist())
     #row.append(np.array(freq).tolist())
-    json.dump(dat,  op, indent=4, separators={",", ":"})
+    json.dump(dat,  op, indent=4)
+with open("data.json") as op:
+    data=json.load(op)
+
+pprint.pprint(data)
+print(data['Chan']['Frequency'])
+
+
 
 #plt.matshow(coef)
 #plt.show()
-X=[]
-Y=[]
-Z=[]
+#X=[]
+#Y=[]
+#Z=[]
 
 
  #   for j in freq:
@@ -50,13 +67,13 @@ Z=[]
  #       temp=a[:,i]
  #       Z.append(temp[k])
  #       k=k+1
-print(len(X))
-pprint.pprint(X)
+#print(len(X))
+#pprint.pprint(X)
 
-print("\n\n")
-pprint.pprint(freq)
-print(coef)
-print(len(X), " ", len(freq), " ", len(coef), " ", len(Z))
+#print("\n\n")
+#pprint.pprint(freq)
+#print(coef)
+#print(len(X), " ", len(freq), " ", len(coef), " ", len(Z))
 
 #fig = plt.figure()
 #ax = plt.contour(coef)
