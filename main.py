@@ -1,8 +1,9 @@
 from virtenv.include.appJar import gui
 import virtenv.include.com_serial as ser
+import virtenv.include.eeg_streamer as lsl_streamer
+import virtenv.include.neural_network as neu_net
 import webbrowser
 import os
-import virtenv.include.eeg_streamer as lsl_streamer
 import pywt
 import threading
 import time
@@ -10,14 +11,6 @@ import json
 import random
 from pylsl import StreamInlet, resolve_stream
 import numpy as np
-
-class Overr_Dictionary(dict):
-    def __getitem__(self, item):
-        try:
-            return dict.__getitem__(self, item)
-        except KeyError:
-            value = self[item] = type(self)()
-            return value
 
 
 def page_0():
@@ -96,7 +89,7 @@ def page_1(port=None, name="", eeg_chosen="Mu waves"):
     app.addLabel("Teach", "Teach NN", 3, 3)
     app.addLabel("Teach_RR", "**", 3, 4)
     app.addButton("Start Teaching", lambda: start_teaching(lsl, name), 4, 3)
-    app.addButton("Stop Teaching", lambda: stopteach_nn(lsl), 4, 4)
+    app.addButton("Stop Teaching", lambda: stop_acq_data_teach_nn(lsl), 4, 4)
     app.addButton("Load NN", do_nothing, 5, 3)
     app.addButton("Save NN", do_nothing, 5, 4)
 
@@ -209,10 +202,9 @@ def timer(sec):
     t.join()
 
 
-def init_arrow():
+def init_arrow(text):
     ran_choice = random.choice(["right", "left"])
-    with app.getTextArea("description") as temp:
-        direction = temp[:temp.find(ran_choice)]+ran_choice
+    direction = text.replace("_direction_", ran_choice)
     app.setTextArea("description", direction)
     get_arrow(ran_choice)
     return ran_choice
@@ -228,12 +220,17 @@ def show_progress_train(var=None):
 
 def teach_nn(lsl, name):
     show_progress_train("Starting Signal acquisition ...")
+    count = 0
     try:
         while stop_teaching is False:
-            arrow = init_arrow()
+            count += 1
+            arrow = init_arrow("Sample N° " + str(count) + "\n" + show_progress_train())
             show_progress_train("Adjusting ...")
-            timer(1, show_progress_train("1 ..."))
-            timer(1, show_progress_train("2 ... Done!"))
+
+            timer(1)
+            show_progress_train("1 ...")
+            timer(1)
+            show_progress_train("2 ... Done!")
 
             lsl.start_streaming()
             stream = resolve_stream("name", "openbci_eeg")
@@ -249,51 +246,73 @@ def teach_nn(lsl, name):
             lsl.stop_streaming()
             show_progress_train("Done!")
 
-            show_progress_train("Passing through Wavelet Analisys ...")
-            coef, freq = wavelet_analysis(data, lsl.sample_rate)
-            show_progress_train("Done!")
             show_progress_train("Saving current sample ...")
-            nome_file=save_samples(coef, freq, name, lsl.eeg_channels)
+            nome_file = save_samples(data, name, lsl.eeg_channels)
     except:
         err_page("Error training the Neural Network!")
 
     show_progress_train("Finishing Signal acquisition ...")
-    stopteach_nn()
-    train_nn(coef, freq, arrow, nome_file)
+    stop_acq_data_teach_nn()
+    train_nn(arrow, nome_file, lsl.sample_rate)
 
 
-def save_samples(coef, freq, name, channels=8):
+def save_samples(data, name, channels=8):
     path_name = "virtenv/resources/"+name+"_data.json"
-    data=json.load(path_name)
-    count=data["Sample"]
-    save = Overr_Dictionary(data)
-    for j in np.arange(0, channels):
-        save["Sample"]=count+1
-        save[count+1][j]["Frequency"]=freq[j]
-        save[count+1][j]["Data"]=coef[j]
-    with open(os.path.abspath(path_name)) as op:
-        json.dump(save, op, indent=4, separators={",", ":"})
+
+    if os.path.exists(os.path.abspath(path_name)):
+        temp_dict = json.load(open(os.path.abspath(path_name)))
+        count_temp = []
+        for x in temp_dict:
+            count_temp.append(x)
+        count = np.max(np.array(count_temp).astype(int))
+    else:
+        temp_dict = {}
+        count = 0
+
+    temp_single_chn = {}
+    i = 0
+
+    # Canale
+    for chan in data:
+        temp_single_chn["Channel" + str(i)] = chan
+        i += 1
+
+    temp_dict[str(count+1)] = temp_single_chn
+
+    with open(os.path.abspath(path_name), 'w') as op:
+        json.dump(temp_dict, op, indent=4)
+
     return path_name
 
 
-#####Da rivedere il json parsing
 def get_samples(name):
-    get_data(name)
+    return get_data(name)
 
 
 def wavelet_analysis(data, sample_rate):
     coef = []
     freq = []
-    for i in data:
-        scale = np.arange(1, 50)
-        temp_coef, temp_freq = pywt.cwt(data[i], scale, "morl", sample_rate)
-        threshold = signal_to_noise_ratio(temp_coef)
-        for j in temp_coef:
-            for k in temp_coef[j]:
-                if temp_coef[j][k] < threshold:
-                    temp_coef[j][k] = 0
-        coef.append(temp_coef)
-        freq.append(temp_freq)
+
+    for sampl in data:
+        part_coef=[]
+        part_freq=[]
+
+        for chan in sampl:
+            scale = np.arange(1, 15)
+            temp_coef, temp_freq = pywt.cwt(chan, scale, "morl", sample_rate)
+            threshold = signal_to_noise_ratio(temp_coef)
+
+            for j in temp_coef:
+                for k in temp_coef[j]:
+                    if temp_coef[j][k] < threshold:
+                        temp_coef[j][k] = 0
+
+            part_coef.append(temp_coef)
+            part_freq.append(temp_freq)
+
+        coef.append(part_coef)
+        freq.append(part_freq)
+
     return coef, freq
 
 
@@ -310,11 +329,16 @@ def signal_to_noise_ratio(data):
     return max_val/(sum/count)
 
 
-def train_nn(coef, freq, arrow):
+def train_nn(path, arrow, sample_rate):
+    show_progress_train("Passing through Wavelet Analisys ...")
+    coef, freq = wavelet_analysis(get_data(path), sample_rate)
+    show_progress_train("Done!")
+    nn = neu_net.NeuralNetwork(coef, freq, arrow)
+
+    return nn
 
 
-
-def stopteach_nn(lsl):
+def stop_acq_data_teach_nn(lsl):
     global stop_teaching
     stop_teaching = True
     lsl.cleanUp()
