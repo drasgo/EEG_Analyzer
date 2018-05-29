@@ -32,26 +32,37 @@ sampl_per=0.25
 #coef, freq = pywt.cwt(y, np.arange(1,15), 'morl', sampl_per)
 
 tremp = np.array(y).tolist()
+a = "a"
 
-
-for i in np.arange(0, 100):
+for i in np.arange(0, 10):
     name="Tom"
     path_name = name+"_data.json"
     if os.path.exists(os.path.abspath(path_name)):
         temp_dict = json.load(open(os.path.abspath(path_name)))
-        count_temp = []
-        for x in temp_dict:
-            count_temp.append(x)
-        count = np.max(np.array(count_temp).astype(int))
+        temp = {}
+        o = 0
+        for x in temp_dict: ##acquisizione
+            count_temp = []
+            for k in x:## arrow + dati
+                count_temp.append(k)
+            temp[str(o)]=count_temp
+            o+=1
+        count = len(temp) + 1
 
     else:
         temp_dict = {}
         count = 0
 
-    temp=[]
-    temp.append(tremp)
+    temp_ch=[]
+    temp_glob = []
+    temp_glob.append(a)
+    for k in np.arange(0,10):
+        temp_ch.append(tremp)
+    temp_glob.append(temp_ch)
+    ttemp = []
+    ttemp.append(temp_glob)
 
-    temp_dict[str(i)]=temp
+    temp_dict[str(count)]=ttemp
 
     with open(os.path.abspath(path_name), 'w') as op:
         json.dump(temp_dict, op, indent=4)

@@ -12,6 +12,8 @@ import random
 from pylsl import StreamInlet, resolve_stream
 import numpy as np
 
+__signalAcquisitionTime__ = 2
+
 
 def page_0():
     # gui for first page
@@ -224,60 +226,67 @@ def teach_nn(lsl, name):
     try:
         while stop_teaching is False:
             count += 1
-            arrow = init_arrow("Sample N° " + str(count) + "\n" + show_progress_train())
+            show_progress_train()
+            arrow = init_arrow("Sample N° " + str(count) + "\n")
             show_progress_train("Adjusting ...")
 
-            timer(1)
-            show_progress_train("1 ...")
-            timer(1)
-            show_progress_train("2 ... Done!")
-
             lsl.start_streaming()
+
             stream = resolve_stream("name", "openbci_eeg")
             inlet = StreamInlet(stream[0])
 
             data = []
             show_progress_train("Acquiring Data ...")
             with time.time() as t1:
-                while (time.time() - t1) < 3:
+                while (time.time() - t1) <= __signalAcquisitionTime__:
                     if (time.time() - t1).is_integer():
                         show_progress_train(str(time.time() - t1) + " ...")
                         data.append(inlet.pull_sample())
             lsl.stop_streaming()
             show_progress_train("Done!")
-
+            finaldata = data[0:lsl.sample_rate*__signalAcquisitionTime__]
             show_progress_train("Saving current sample ...")
-            nome_file = save_samples(data, name, lsl.eeg_channels)
+            nome_file = save_samples(finaldata, name, arrow)
     except:
-        err_page("Error training the Neural Network!")
+        err_page("Error acquiring EEG data!")
 
     show_progress_train("Finishing Signal acquisition ...")
-    stop_acq_data_teach_nn()
-    train_nn(arrow, nome_file, lsl.sample_rate)
+    stop_acq_data_teach_nn(lsl)
+    train_nn(nome_file, lsl.sample_rate)
 
 
-def save_samples(data, name, channels=8):
+def save_samples(data, name, arrow):
     path_name = "virtenv/resources/"+name+"_data.json"
 
     if os.path.exists(os.path.abspath(path_name)):
         temp_dict = json.load(open(os.path.abspath(path_name)))
-        count_temp = []
-        for x in temp_dict:
-            count_temp.append(x)
-        count = np.max(np.array(count_temp).astype(int))
+        temp = {}
+        o = 0
+        for x in temp_dict:  ##acquisizione
+            count_temp = []
+            for k in x:  ## arrow + dati
+                count_temp.append(k)
+            temp[str(o)] = count_temp
+            o += 1
+        count = len(temp) + 1
     else:
         temp_dict = {}
         count = 0
 
-    temp_single_chn = {}
-    i = 0
+    temp_ch = []
+    temp_glob = []
 
-    # Canale
+    temp_glob.append(arrow)
+
     for chan in data:
-        temp_single_chn["Channel" + str(i)] = chan
-        i += 1
+        temp_ch.append(chan)
 
-    temp_dict[str(count+1)] = temp_single_chn
+    temp_glob.append(temp_ch)
+
+    ttemp = []
+    ttemp.append(temp_glob)
+
+    temp_dict[str(count)] = ttemp
 
     with open(os.path.abspath(path_name), 'w') as op:
         json.dump(temp_dict, op, indent=4)
