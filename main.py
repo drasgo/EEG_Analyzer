@@ -337,8 +337,10 @@ def train_nn(path, sample_rate, user):
     show_progress_train("Passing through Wavelet Analisys ...")
     coef, freq, arrow = wavelet_analysis(get_data(path), sample_rate)
     show_progress_train("Done!")
-    nn = neu_net.NeuralNetwork(coef, freq, arrow, user)
-
+    nn = neu_net.NeuralNetwork(coef=coef, freq=freq, arrow=arrow, user=user)
+    nn.setup_nn()
+    accuracy = nn.train(num_epochs=10)
+    show_progress_train("Accuracy: " + accuracy)
     return nn
 
 

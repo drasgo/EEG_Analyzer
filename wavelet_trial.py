@@ -11,7 +11,7 @@ import configparser
 import matplotlib.axes as ax
 import time
 import random
-
+import virtenv.include.neural_network as neu_net
 
 
 def wavelet_analysis(data, sample_rate):
@@ -114,7 +114,6 @@ for i in np.arange(0, 10):
 
     with open(os.path.abspath(path_name), 'w') as op:
         json.dump(temp_dict, op, indent=4)
-    print(str(i))
 #    pprint.pprint(temp)
 
 with open(os.path.abspath(path_name)) as op:
@@ -141,13 +140,14 @@ print("finito json dump")
 
 #pprint.pprint(len(freccia))
 #pprint.pprint(len(dati))
-
+print("before wavelet")
 coef, freq, flag = wavelet_analysis(dat, sampl_per)
+print("after wavelet")
+nn = neu_net.NeuralNetwork(flag, "tom", coef, freq)
 
-print(len(coef))
-print(len(freq))
-print(len(flag))
-
+nn.setup_nn()
+accuracy = nn.train(10)
+print("Accuracy " + accuracy)
 
 #    for kss in k:
 #        pprint.pprint(kss)
