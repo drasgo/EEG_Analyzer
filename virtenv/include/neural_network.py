@@ -1,4 +1,4 @@
-import tensorflow
+import tensorflow as tf
 
 
 class NeuralNetwork(object):
@@ -7,8 +7,8 @@ class NeuralNetwork(object):
         self.coef = coef
         self.freq = freq
         self.arrow = arrow
-        self.user = user
-        self.setup_nn()
+        self.path_name = "nn_" + user
+        setup_nn()
 
     def setup_nn(self):
         if
@@ -21,6 +21,8 @@ class NeuralNetwork(object):
         print()
 
     def save_nn(self):
+        saver = tf.train.Saver()
+        saver.save(sess, self.path_name)
         print()
 
     def run_nn(self):

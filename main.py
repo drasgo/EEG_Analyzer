@@ -222,6 +222,7 @@ def show_progress_train(var=None):
 
 def teach_nn(lsl, name):
     show_progress_train("Starting Signal acquisition ...")
+    path_name = "virtenv/resources/" + name + "_data.json"
     count = 0
     try:
         while stop_teaching is False:
@@ -246,52 +247,36 @@ def teach_nn(lsl, name):
             show_progress_train("Done!")
             finaldata = data[0:lsl.sample_rate*__signalAcquisitionTime__]
             show_progress_train("Saving current sample ...")
-            nome_file = save_samples(finaldata, name, arrow)
+            save_samples(finaldata, name, arrow)
     except:
         err_page("Error acquiring EEG data!")
 
     show_progress_train("Finishing Signal acquisition ...")
+    show_progress_train("Data saved in " + path_name)
     stop_acq_data_teach_nn(lsl)
-    train_nn(nome_file, lsl.sample_rate)
+    train_nn(path_name, lsl.sample_rate, name)
 
 
-def save_samples(data, name, arrow):
-    path_name = "virtenv/resources/"+name+"_data.json"
-
+def save_samples(data, path_name, arrow):
     if os.path.exists(os.path.abspath(path_name)):
         temp_dict = json.load(open(os.path.abspath(path_name)))
-        temp = {}
-        o = 0
-        for x in temp_dict:  ##acquisizione
-            count_temp = []
-            for k in x:  ## arrow + dati
-                count_temp.append(k)
-            temp[str(o)] = count_temp
-            o += 1
-        count = len(temp) + 1
+        count = len(temp_dict)
     else:
         temp_dict = {}
         count = 0
 
     temp_ch = []
-    temp_glob = []
-
-    temp_glob.append(arrow)
-
+    temp_glob = {}
+    temp_glob["arrow"] = arrow
     for chan in data:
         temp_ch.append(chan)
 
-    temp_glob.append(temp_ch)
+    temp_glob["dati"] = temp_ch
 
-    ttemp = []
-    ttemp.append(temp_glob)
-
-    temp_dict[str(count)] = ttemp
+    temp_dict[str(count)] = temp_glob
 
     with open(os.path.abspath(path_name), 'w') as op:
         json.dump(temp_dict, op, indent=4)
-
-    return path_name
 
 
 def get_samples(name):
@@ -301,8 +286,18 @@ def get_samples(name):
 def wavelet_analysis(data, sample_rate):
     coef = []
     freq = []
+    arrow = []
+    dati = []
+    canali = []
 
-    for sampl in data:
+    for sing_acqu in np.arange(0, len(data)):
+        acq = data[str(sing_acqu)]
+        arrow.append(acq["arrow"])
+        for sing_chn in acq["dati"]:
+            canali.append(sing_chn)
+        dati.append(canali)
+
+    for sampl in dati:
         part_coef=[]
         part_freq=[]
 
@@ -312,9 +307,9 @@ def wavelet_analysis(data, sample_rate):
             threshold = signal_to_noise_ratio(temp_coef)
 
             for j in temp_coef:
-                for k in temp_coef[j]:
-                    if temp_coef[j][k] < threshold:
-                        temp_coef[j][k] = 0
+                for k in j:
+                    if k < threshold:
+                        k = 0
 
             part_coef.append(temp_coef)
             part_freq.append(temp_freq)
@@ -322,7 +317,7 @@ def wavelet_analysis(data, sample_rate):
         coef.append(part_coef)
         freq.append(part_freq)
 
-    return coef, freq
+    return coef, freq, arrow
 
 
 def signal_to_noise_ratio(data):
@@ -330,19 +325,19 @@ def signal_to_noise_ratio(data):
     sum = 0
     count = 0
     for i in data:
-        for j in data[i]:
-            if max_val < data[i][j]:
-                max_val = data[i][j]
-            sum += data[i][j]
+        for j in i:
+            if max_val < j:
+                max_val = j
+            sum += j
             count += 1
     return max_val/(sum/count)
 
 
-def train_nn(path, arrow, sample_rate):
+def train_nn(path, sample_rate, user):
     show_progress_train("Passing through Wavelet Analisys ...")
-    coef, freq = wavelet_analysis(get_data(path), sample_rate)
+    coef, freq, arrow = wavelet_analysis(get_data(path), sample_rate)
     show_progress_train("Done!")
-    nn = neu_net.NeuralNetwork(coef, freq, arrow)
+    nn = neu_net.NeuralNetwork(coef, freq, arrow, user)
 
     return nn
 

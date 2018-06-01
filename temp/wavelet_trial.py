@@ -10,14 +10,63 @@ import json
 import configparser
 import matplotlib.axes as ax
 import time
+import random
 
-class Vividict(dict):
-    def __getitem__(self, item):
-        try:
-            return dict.__getitem__(self, item)
-        except KeyError:
-            value = self[item] = type(self)()
-            return value
+
+
+def wavelet_analysis(data, sample_rate):
+    coef = []
+    freq = []
+    arrow = []
+    dati = []
+    canali = []
+
+    for sing_acqu in np.arange(0, len(data)):
+        acq = data[str(sing_acqu)]
+        arrow.append(acq["arrow"])
+        for sing_chn in acq["dati"]:
+            canali.append(sing_chn)
+        dati.append(canali)
+
+    for sampl in dati:
+        part_coef=[]
+        part_freq=[]
+
+        for chan in sampl:
+            scale = np.arange(1, 15)
+            temp_coef, temp_freq = pywt.cwt(chan, scale, "morl", sample_rate)
+            threshold = signal_to_noise_ratio(temp_coef)
+
+            for j in temp_coef:
+                for k in j:
+                    if k < threshold:
+                        print(k+ "--> 0")
+                        k = 0
+
+            part_coef.append(temp_coef)
+            part_freq.append(temp_freq)
+
+        coef.append(part_coef)
+        freq.append(part_freq)
+
+    return coef, freq, arrow
+
+
+def signal_to_noise_ratio(data):
+    max_val = 0
+    sum = 0
+    count = 0
+    for i in data:
+        for j in i:
+            if max_val < j:
+                max_val = j
+            sum += j
+            count += 1
+#    print(str(max_val)+"/("+str(sum)+"/"+str(count)+")")
+    return max_val/(sum/count)
+
+
+
 #with open(os.path.abspath("virtenv/bin/mauna.dat")) as o:
 #    data = np.loadtxt(os.path.abspath("virtenv/bin/sst_nino3.dat"))
 #print (data)
@@ -32,37 +81,36 @@ sampl_per=0.25
 #coef, freq = pywt.cwt(y, np.arange(1,15), 'morl', sampl_per)
 
 tremp = np.array(y).tolist()
-a = "a"
+
+name = "Tom"
+path_name = name + "_data.json"
 
 for i in np.arange(0, 10):
-    name="Tom"
-    path_name = name+"_data.json"
     if os.path.exists(os.path.abspath(path_name)):
         temp_dict = json.load(open(os.path.abspath(path_name)))
-        temp = {}
-        o = 0
-        for x in temp_dict: ##acquisizione
-            count_temp = []
-            for k in x:## arrow + dati
-                count_temp.append(k)
-            temp[str(o)]=count_temp
-            o+=1
-        count = len(temp) + 1
+    #    temp = {}
+   #     o = 0
+ #       for x in np.arange(0, len(temp_dict)): ##acquisizione
+  #           count_temp = []
+  #          for k in temp_dict[str(x)]:## arrow + dati
+  #              count_temp.append(k)
+  #          temp[str(o)]=count_temp
+  #          o+=1
+        count = len(temp_dict)
 
     else:
         temp_dict = {}
         count = 0
 
+    a = random.choice(["right", "left"])
     temp_ch=[]
-    temp_glob = []
-    temp_glob.append(a)
+    temp_glob = {}
+    temp_glob["arrow"] = a
     for k in np.arange(0,10):
         temp_ch.append(tremp)
-    temp_glob.append(temp_ch)
-    ttemp = []
-    ttemp.append(temp_glob)
+    temp_glob["dati"] = temp_ch
 
-    temp_dict[str(count)]=ttemp
+    temp_dict[str(count)]=temp_glob
 
     with open(os.path.abspath(path_name), 'w') as op:
         json.dump(temp_dict, op, indent=4)
@@ -73,8 +121,38 @@ with open(os.path.abspath(path_name)) as op:
     dat=json.load(op)
 
 
-for k in dat:
-    coef, freq= pywt.cwt(y, np.arange(1,15), "morl", sampl_per)
+
+#pprint.pprint(dat)
+print("finito json dump")
+#pprint.pprint(dat["0"])
+#print(len(dat))
+#freccia = []
+#dati = []
+#canali = []
+
+#for k in np.arange(0, len(dat)):
+#    print(k)
+#    ins = dat[str(k)]
+#    freccia.append(ins["freccia"])
+#    print(ins["freccia"])
+#    for jj in ins["dati"]:
+#        canali.append(jj)
+#    dati.append(canali)
+
+#pprint.pprint(len(freccia))
+#pprint.pprint(len(dati))
+
+coef, freq, flag = wavelet_analysis(dat, sampl_per)
+
+print(len(coef))
+print(len(freq))
+print(len(flag))
+
+
+#    for kss in k:
+#        pprint.pprint(kss)
+
+#    coef, freq= pywt.cwt(y, np.arange(1,15), "morl", sampl_per)
 #    pprint.pprint(coef)
 #    pprint.pprint(freq)
 
