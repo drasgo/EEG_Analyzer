@@ -19,13 +19,14 @@ def wavelet_analysis(data, sample_rate):
     freq = []
     arrow = []
     dati = []
-    canali = []
 
-    for sing_acqu in np.arange(0, len(data)):
+    for sing_acqu in range(len(data)):
+        canali = []
         acq = data[str(sing_acqu)]
         arrow.append(acq["arrow"])
         for sing_chn in acq["dati"]:
             canali.append(sing_chn)
+
         dati.append(canali)
 
     for sampl in dati:
@@ -120,7 +121,6 @@ with open(os.path.abspath(path_name)) as op:
     dat=json.load(op)
 
 
-
 #pprint.pprint(dat)
 print("finito json dump")
 #pprint.pprint(dat["0"])
@@ -140,13 +140,12 @@ print("finito json dump")
 
 #pprint.pprint(len(freccia))
 #pprint.pprint(len(dati))
-print("before wavelet")
 coef, freq, flag = wavelet_analysis(dat, sampl_per)
 print("after wavelet")
 nn = neu_net.NeuralNetwork(flag, "tom", coef, freq)
 
 nn.setup_nn()
-accuracy = nn.train(10)
+accuracy = nn.train(5, 4)
 print("Accuracy " + accuracy)
 
 #    for kss in k:

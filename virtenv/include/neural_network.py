@@ -1,5 +1,6 @@
 import tensorflow as tf
 import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
 class NeuralNetwork(object):
@@ -26,16 +27,24 @@ class NeuralNetwork(object):
         else:
             print("In nn setup")
             hl1 = 500
-            self.input = tf.placeholder(tf.float32, [None, self.dim_channels, self.dim_freq, self.dim_samples, 2], name="input")
-            self.label = tf.placeholder(tf.float32, name="label")
+            self.input = tf.placeholder(tf.float32, [None, self.dim_channels, self.dim_samples, self.dim_freq, 2], name="input")
+            self.label = tf.placeholder(tf.int32, name="label")
 
-            l1 = tf.layers.dense(input, hl1, tf.nn.relu)
+            l1 = tf.layers.dense(inputs=self.input, units=hl1, activation=tf.nn.relu)
 
-            self.output = tf.layers.dense(l1, 1)
+            self.output = tf.layers.dense(inputs=l1, units=1, activation=tf.nn.relu)
 
-            self.loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=label, logits=output))
+            self.loss = tf.losses.mean_squared_error(labels=self.label, predictions=self.output)
 
-            self.train_opt = tf.train.AdamOptimizer(0.01).minimize(loss)
+            self.train_opt = tf.train.GradientDescentOptimizer(learning_rate=0.5).minimize(self.loss)
+
+            #self.correct_pred = tf.argmax(self.output, 1)
+
+            self.accuracy = tf.reduce_mean(tf.cast(self.output, tf.int32))
+
+            #self.loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.label, logits=self.output))
+
+            #self.train_opt = tf.train.AdamOptimizer(0.01).minimize(self.loss)
             print("finished nn setup")
 
 
@@ -47,34 +56,37 @@ class NeuralNetwork(object):
         dim_channels = 0
         dim_samples = 0
         dim_freq = 0
-        for i in range(len(coef)):
+        for i in range(len(coef)):#n acq--> 1 acq
+            chan_feed = []
             single_acq_data = coef[i]
             single_acq_freq = freq[i]
             dim_channels = len(single_acq_data)
-            for j in range(len(single_acq_data)):
-                chan_feed = []
+            for j in range(len(single_acq_data)):# m chan --> 1 chan
+                camp_feed = []
                 single_chan_data = single_acq_data[j]
                 single_chan_freq = single_acq_freq[j]
                 dim_freq = len(single_chan_data)
-                for single_freq_data in single_chan_data:
-                    camp_feed = []
-                    dim_samples = len(single_freq_data)
-                    for single_value_data in single_freq_data:
-                        freq_feed = []
-                        for single_value_freq in single_chan_freq:
-                            print("in single feed")
-                            single_feed = []
-                            single_feed.append(single_value_freq)
-                            single_feed.append(single_value_data)
-                            freq_feed.append(single_feed)
-                        print("in camp feed")
-                        camp_feed.append(freq_feed)
-                    print("in chan feed")
-                    chan_feed.append(camp_feed)
-                print("in acquisition feed")
-                acquisition_feed.append(chan_feed)
 
-        return data, dim_channels, dim_freq, dim_samples
+                for k in range(len(single_chan_data[0])):# dimension of number of periods
+                    freq_feed = []
+
+                    for (single_value_freq, single_freq_data) in zip(single_chan_freq, single_chan_data):
+                        single_feed = []
+                        single_feed.append(single_value_freq)
+                        single_feed.append(single_freq_data[k])
+                        freq_feed.append(single_feed)
+
+                    camp_feed.append(freq_feed)
+                    dim_freq = len(freq_feed)
+
+                chan_feed.append(camp_feed)
+                dim_samples = len(camp_feed)
+
+            acquisition_feed.append(chan_feed)
+            dim_channels = len(chan_feed)
+            print("Acquisition "+str(i)+" ready! "+str(len(coef)-i)+" to go!")
+        print("dim_channels: "+str(dim_channels)+", dim_freq: "+str(dim_freq)+", dim_samples: "+str(dim_samples))
+        return acquisition_feed, dim_channels, dim_freq, dim_samples
 
 # if "right"-->1, if "left"-->0
     def prepare_labels(self, arrow):
@@ -88,21 +100,39 @@ class NeuralNetwork(object):
 
         return prep_labels
 
-    def train(self, num_epochs):
-        self.sess.run(tf.initialize_all_variables())
-        print("starting train")
-        for acquisition_train, label_train in zip(self.data, self.labels):
+    def train(self, num_epochs, batch_size):
+        while len(self.data) % batch_size != 0:
+            batch_size += 1
+        with tf.Session() as ses:
+            ses.run(tf.global_variables_initializer())
+            print("starting train")
             for epoch in range(num_epochs):
                 epoch_total_loss = 0
-                _, epoch_loss = sess.run([self.train_opt, self.loss], feed_dict={self.input: acquisition_train,
-                                                                                 self.label: label_train})
-                epoch_total_loss += epoch_loss
+                i = 0
+                while i<len(self.data):
+                    start = i
+                    end = i + batch_size
 
-                print("Epoch " + epoch + " of " + num_epochs + ". Loss " + epoch_total_loss)
-        print("train over")
-        correct = tf.equal(tf.argmax(self.output, 1), tf.argmax(self.label, 1))
-        accuracy = tf.reduce_mean(tf.cast(correct, tf.float32))
-        return accuracy.eval({self.input:self.data_test, self.label: self.labels_test})
+                    batch_x = self.data[start:end]
+                    batch_y = self.labels[start:end]
+                    _, epoch_loss = ses.run([self.train_opt, self.loss], feed_dict={self.input: batch_x,
+                                                                                     self.label: batch_y})
+                    epoch_total_loss += epoch_loss
+                    i += batch_size
+                print("Epoch " + str(epoch) + " of " + str(num_epochs) + ". Loss " + str(epoch_total_loss))
+            print("train over")
+
+            predicted = ses.run([self.output], feed_dict={self.input: self.data_test})
+
+            correct = 0
+            for i in range(len(self.data_test)):
+                a = predicted[i]
+                b = self.labels_test[i]
+                print("predicted: "+ str(a))
+                print("expected: "+ str(b))
+                if a == b:
+                    correct += 1
+            return correct/len(self.data_test)
 
 
     def load_nn(self):
