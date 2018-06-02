@@ -144,9 +144,20 @@ coef, freq, flag = wavelet_analysis(dat, sampl_per)
 print("after wavelet")
 nn = neu_net.NeuralNetwork(flag, "tom", coef, freq)
 
-nn.setup_nn()
-accuracy = nn.train(5, 4)
-print("Accuracy " + accuracy)
+
+accuracy = nn.train(10, 2)
+print("Accuracy " + str(accuracy))
+
+coef_test = coef[round(0.7 * len(coef)):]
+freq_test = freq[round(0.7 * len(freq)):]
+label_test = coef[round(0.7 * len(flag))]
+
+nn_test = neu_net.NeuralNetwork(arrow=label_test, user="tom", coef= coef_test, freq=freq_test, train=False)
+
+if nn_test.check_existing_nn() is True:
+    nn_test.run()
+else:
+    print("Trained Neural Network doesn't exist for "+user+". Please, train one first!")
 
 #    for kss in k:
 #        pprint.pprint(kss)
