@@ -107,7 +107,7 @@ for i in np.arange(0, 10):
     temp_ch=[]
     temp_glob = {}
     temp_glob["arrow"] = a
-    for k in np.arange(0,10):
+    for k in np.arange(0, 10):
         temp_ch.append(tremp)
     temp_glob["dati"] = temp_ch
 
@@ -142,20 +142,22 @@ print("finito json dump")
 #pprint.pprint(len(dati))
 coef, freq, flag = wavelet_analysis(dat, sampl_per)
 print("after wavelet")
-nn = neu_net.NeuralNetwork(flag, "tom", coef, freq)
+user="tom"
+nn = neu_net.NeuralNetwork(arrow=flag, user=user, coef=coef, freq=freq, train=True)
 
 
-accuracy = nn.train(10, 2)
+accuracy = nn.train(5, 1)
 print("Accuracy " + str(accuracy))
 
-coef_test = coef[round(0.7 * len(coef)):]
-freq_test = freq[round(0.7 * len(freq)):]
-label_test = coef[round(0.7 * len(flag))]
+coef_test = coef[len(coef)-1:]
+freq_test = freq[len(freq)-1:]
 
-nn_test = neu_net.NeuralNetwork(arrow=label_test, user="tom", coef= coef_test, freq=freq_test, train=False)
+nn_test = neu_net.NeuralNetwork(user=user, coef=coef_test, freq=freq_test, train=False)
 
 if nn_test.check_existing_nn() is True:
-    nn_test.run()
+    result = nn_test.run()
+    print("Returned result: "+result)
+    print("Correct label: "+str(flag[len(flag)-1:]))
 else:
     print("Trained Neural Network doesn't exist for "+user+". Please, train one first!")
 

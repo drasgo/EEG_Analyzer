@@ -72,7 +72,7 @@ def page_1(port=None, name="", eeg_chosen="Mu waves"):
 
     lsl.create_lsl()
 
-    sub_eeg_settings()
+    sub_eeg_settings(lsl)
     sub_eeg_infos(lsl)
 
     app.addButton("Indietro", shift_page, 0, 0)
@@ -89,15 +89,13 @@ def page_1(port=None, name="", eeg_chosen="Mu waves"):
     # app.addImage("left arrow", get_arrow("left"))
 
     app.addLabel("Teach", "Teach NN", 3, 3)
-    app.addLabel("Teach_RR", "**", 3, 4)
     app.addButton("Start Teaching", lambda: start_teaching(lsl, name), 4, 3)
     app.addButton("Stop Teaching", lambda: stop_acq_data_teach_nn(lsl), 4, 4)
-    app.addButton("Load NN", do_nothing, 5, 3)
-    app.addButton("Save NN", do_nothing, 5, 4)
+    app.addLabel("Teach_RR", "**", 5, 3)
 
     app.addLabel("FireNN", "Fire up", 3, 6)
-    app.addButton("Start NN", do_nothing, 4, 6)
-    app.addButton("Stop NN", do_nothing, 5, 6)
+    app.addButton("Start NN", lambda: start_testing(lsl, name), 4, 6)
+    app.addButton("Stop NN", lambda: stop_testing(lsl), 5, 6)
 
     app.addVerticalSeparator(3, 5, rowspan=3)
     app.addVerticalSeparator(0, 2, rowspan=6)
@@ -198,12 +196,6 @@ def start_teaching(lsl, name):
     board_thread.start()
 
 
-def timer(sec):
-    t = threading.Timer(sec)
-    t.start()
-    t.join()
-
-
 def init_arrow(text):
     ran_choice = random.choice(["right", "left"])
     direction = text.replace("_direction_", ran_choice)
@@ -212,9 +204,18 @@ def init_arrow(text):
     return ran_choice
 
 
+### add mu_waves_descr.txt
 def show_progress_train(var=None):
     if var is None:
         temp = get_data("/virtenv/resources/mu_waves_descr.txt")
+    else:
+        temp = app.getTextArea("description") + "\n" + var
+    app.setTextArea("description", temp)
+
+### add mu_waves_test.txt
+def show_progress_test(var=None):
+    if var is None:
+        temp = get_data("/virtenv/resources/mu_waves_test.txt")
     else:
         temp = app.getTextArea("description") + "\n" + var
     app.setTextArea("description", temp)
@@ -266,7 +267,7 @@ def save_samples(data, path_name, arrow):
         count = 0
 
     temp_ch = []
-    temp_glob = {}
+    temp_glob = dict()
     temp_glob["arrow"] = arrow
     for chan in data:
         temp_ch.append(chan)
@@ -306,10 +307,10 @@ def wavelet_analysis(data, sample_rate):
             temp_coef, temp_freq = pywt.cwt(chan, scale, "morl", sample_rate)
             threshold = signal_to_noise_ratio(temp_coef)
 
-            for j in temp_coef:
-                for k in j:
-                    if k < threshold:
-                        k = 0
+            for j in range(len(temp_coef)):
+                for k in range(len(temp_coef[j])):
+                    if temp_coef[j][k] < threshold:
+                        temp_coef[j][k] = 0
 
             part_coef.append(temp_coef)
             part_freq.append(temp_freq)
@@ -338,16 +339,87 @@ def train_nn(path, sample_rate, user):
     coef, freq, arrow = wavelet_analysis(get_data(path), sample_rate)
     show_progress_train("Done!")
     nn = neu_net.NeuralNetwork(coef=coef, freq=freq, arrow=arrow, user=user)
-    nn.setup_nn()
-    accuracy = nn.train(num_epochs=10)
-    show_progress_train("Accuracy: " + accuracy)
-    return nn
+    accuracy = nn.train(num_epochs=10, batch_size=2)
+    show_progress_train("Accuracy: " + str(accuracy))
+    app.setLabel("Teach_NN", str(accuracy*100)+"%")
+    show_progress_train("Neural Network model saved in " + os.path.abspath("NN/nn_" + user) + "/")
 
 
 def stop_acq_data_teach_nn(lsl):
     global stop_teaching
     stop_teaching = True
     lsl.cleanUp()
+
+
+def start_testing(lsl, name):
+    global stop_working
+    stop_working = False
+    test = threading.Thread(target=test_nn(lsl, name))
+    test.run()
+
+
+def stop_testing(lsl):
+    global stop_working
+    stop_working = True
+    lsl.cleanUp()
+
+
+def test_nn(lsl, name):
+    show_progress_train("Starting testing acquisition ...")
+    path_name = "virtenv/resources/" + name + "_data.json"
+    nn = neu_net.NeuralNetwork(user=name)
+    try:
+        while stop_working is False:
+            show_progress_test()
+            show_progress_test("Adjusting ...")
+
+            lsl.start_streaming()
+
+            stream = resolve_stream("name", "openbci_eeg")
+            inlet = StreamInlet(stream[0])
+
+            data = []
+            show_progress_test("Acquiring Data ...")
+            with time.time() as t1:
+                while (time.time() - t1) <= __signalAcquisitionTime__:
+                    if (time.time() - t1).is_integer():
+                        show_progress_test(str(time.time() - t1) + " ...")
+                        data.append(inlet.pull_sample())
+            lsl.stop_streaming()
+            show_progress_test("Done!")
+            finaldata = data[0:lsl.sample_rate * __signalAcquisitionTime__]
+            show_progress_test("Passing throught Neural Network ... ")
+            coef, freq = wavelet_testing(finaldata, lsl.sample_rate)
+            result = nn.run(coef, freq)
+            get_arrow(result)
+    except:
+        err_page("Error acquiring EEG data!")
+
+    show_progress_test("Finished testing")
+    stop_testing(lsl)
+
+
+def wavelet_testing(finaldata, sample_rate):
+    part_coef = []
+    part_freq = []
+    coef = []
+    freq = []
+    for chan in finaldata:
+        scale = np.arange(1, 15)
+        temp_coef, temp_freq = pywt.cwt(chan, scale, "morl", sample_rate)
+        threshold = signal_to_noise_ratio(temp_coef)
+
+        for j in range(len(temp_coef)):
+            for k in range(len(temp_coef[j])):
+                if temp_coef[j][k] < threshold:
+                    temp_coef[j][k] = 0
+
+        part_coef.append(temp_coef)
+        part_freq.append(temp_freq)
+
+    coef.append(part_coef)
+    freq.append(part_freq)
+    return coef, freq
 
 
 def start_nn():

@@ -5,22 +5,21 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 class NeuralNetwork(object):
 
-    def __init__(self, arrow, user, coef, freq, train=True):
-
-        self.path_name = "NN/nn_" + user
-
-        self.data = self.prepare_data(coef, freq)
-        self.labels = self.prepare_labels(arrow)
+    def __init__(self, user, coef=None, freq=None, arrow=None, train=True):
 
         print("In nn constructor")
+        self.path_name = "NN/nn_" + user
 
         if train is True:
             self.data_test = self.data[round(0.7 * len(self.data)):]
             self.labels_test = self.labels[round(0.7*len(self.data)):]
+        else:
+            self.data = self.prepare_data(coef, freq)
+            self.labels = self.prepare_labels(arrow)
 
-            print("Test data length: " + str(len(self.data_test)))
-            print("Test labels length: " + str(len(self.labels_test)))
-
+            self.sess = tf.Session()
+            new_saver = tf.train.import_meta_graph(os.path.abspath(self.path_name + "/model.meta"))
+            new_saver.restore(self.sess, tf.train.latest_checkpoint(os.path.abspath(self.path_name)))
 
 #from [acquisitions[channels[frequencies[values]]] = coef and [acquisitions[channels[values]]] = freq
 #to [fo, x00, f1, x01, ...] ... one long ass vector!
@@ -56,7 +55,6 @@ class NeuralNetwork(object):
                 prep_labels.append([1, 0])
             else:
                 prep_labels.append([0, 1])
-
         return prep_labels
 
     def train(self, num_epochs, batch_size):
@@ -68,7 +66,6 @@ class NeuralNetwork(object):
 
         while len(self.data) % batch_size != 0:#batch_size of correct size to cut without problems input data
             batch_size += 1
-        print("Num of acquisitions: "+str(len(self.data))+" Batch size: "+str(batch_size))
 
         with tf.Session() as ses:
             ses.run(tf.global_variables_initializer())
@@ -90,18 +87,17 @@ class NeuralNetwork(object):
                     i += batch_size
 
                 print("Epoch " + str(epoch) + " of " + str(num_epochs) + ". Loss " + str(epoch_total_loss))
-            writer = tf.summary.FileWriter()
+            writer = tf.summary.FileWriter(os.path.abspath("NN"), ses.graph)
+            writer.close()
             print("train over")
             correct = tf.equal(tf.argmax(prediction, 1), tf.argmax(self.label, 1))
-            print("NN output: " + str(correct))
             accuracy = tf.reduce_mean(tf.cast(correct, "float"))
-
             res = accuracy.eval({self.input: self.data_test, self.label: self.labels_test})
 
-            create_file()
+            self.create_file()
 
             saver = tf.train.Saver()
-            saver.save(sess, self.path_name+"/model")
+            saver.save(ses, os.path.abspath(self.path_name+"/model"))
 
         return res
 
@@ -132,7 +128,7 @@ class NeuralNetwork(object):
         l2 = tf.add(tf.matmul(l1, hidden_l_2['weights']), hidden_l_2['biases'])
         l2 = tf.nn.relu(l2)
 
-        output_l = tf.matmul(l2, output_l['weights']) + output_l['biases']
+        output_l = tf.add(tf.matmul(l2, output_l['weights']), output_l['biases'], name='output')
         ###
         print("finished nn setup")
 
@@ -143,11 +139,27 @@ class NeuralNetwork(object):
             os.makedirs(self.path_name)
 
     def check_existing_nn(self):
-        if os.path.isdir(os.path.abspath(self.path_name)) and os.path.isfile(os.path.isfile(self.path_name + "/model.meta")):
-            load_nn()
+        if os.path.isdir(os.path.abspath(self.path_name)):
             return True
         else:
             return False
 
-    def (self):
+    def get_result(self, output):
+        if output[0] > output[1]:
+            return "right"
+        else:
+            return "left"
 
+    def run(self, coef, freq):
+        data = self.prepare_data(coef, freq)
+        new_input = tf.get_default_graph().get_tensor_by_name('input:0')
+        new_output = tf.get_default_graph().get_tensor_by_name('output:0')
+        output = [0, 1]
+        i = 0
+        while i < len(data):
+            start = i
+            end = i+1
+            batch_x = data[start:end]
+            output = self.sess.run(new_output, feed_dict={new_input: batch_x})[0]
+            i += 1
+        return self.get_result(output)
