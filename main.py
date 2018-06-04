@@ -223,7 +223,7 @@ def show_progress_test(var=None):
 
 def teach_nn(lsl, name):
     show_progress_train("Starting Signal acquisition ...")
-    path_name = "virtenv/resources/" + name + "_data.json"
+    path_name = "Data/" + name + "_data.json"
     count = 0
     try:
         while stop_teaching is False:
