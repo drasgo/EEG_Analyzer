@@ -11,11 +11,11 @@ class NeuralNetwork(object):
         self.path_name = "NN/nn_" + user
 
         if train is True:
+            self.data = self.prepare_data(coef, freq)
+            self.labels = self.prepare_labels(arrow)
             self.data_test = self.data[round(0.7 * len(self.data)):]
             self.labels_test = self.labels[round(0.7*len(self.data)):]
         else:
-            self.data = self.prepare_data(coef, freq)
-            self.labels = self.prepare_labels(arrow)
 
             self.sess = tf.Session()
             new_saver = tf.train.import_meta_graph(os.path.abspath(self.path_name + "/model.meta"))

@@ -152,10 +152,10 @@ print("Accuracy " + str(accuracy))
 coef_test = coef[len(coef)-1:]
 freq_test = freq[len(freq)-1:]
 
-nn_test = neu_net.NeuralNetwork(user=user, coef=coef_test, freq=freq_test, train=False)
+nn_test = neu_net.NeuralNetwork(user=user, train=False)
 
 if nn_test.check_existing_nn() is True:
-    result = nn_test.run()
+    result = nn_test.run(coef=coef_test, freq=freq_test)
     print("Returned result: "+result)
     print("Correct label: "+str(flag[len(flag)-1:]))
 else:
