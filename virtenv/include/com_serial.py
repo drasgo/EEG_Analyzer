@@ -1,6 +1,7 @@
 import sys
 import glob
 import serial
+import re
 
 
 def serial_ports():
@@ -8,7 +9,7 @@ def serial_ports():
         ports = ['COM%s' % (i + 1) for i in range(256)]
     elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
         # this excludes your current terminal "/dev/tty"
-        ports = glob.glob('/dev/tty[A-Za-z]*')
+        ports = glob.glob('/dev/ttyUSB*')
     elif sys.platform.startswith('darwin'):
         ports = glob.glob('/dev/tty.*')
     else:
@@ -16,10 +17,8 @@ def serial_ports():
 
     result = []
     for port in ports:
-        try:
-            s = serial.Serial(port)
-            s.close()
-            result.append(port)
-        except (OSError, serial.SerialException):
-            pass
+        s = serial.Serial(port)
+        s.close()
+        result.append(port)
+        pass
     return result

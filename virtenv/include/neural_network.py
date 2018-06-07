@@ -15,8 +15,8 @@ class NeuralNetwork(object):
             self.labels = self.prepare_labels(arrow)
             self.data_test = self.data[round(0.7 * len(self.data)):]
             self.labels_test = self.labels[round(0.7*len(self.data)):]
-        else:
 
+        else:
             self.sess = tf.Session()
             new_saver = tf.train.import_meta_graph(os.path.abspath(self.path_name + "/model.meta"))
             new_saver.restore(self.sess, tf.train.latest_checkpoint(os.path.abspath(self.path_name)))

@@ -12,7 +12,9 @@ import matplotlib.axes as ax
 import time
 import random
 import virtenv.include.neural_network as neu_net
-
+import serial
+import serial.tools.list_ports
+from appJar import gui
 
 def wavelet_analysis(data, sample_rate):
     coef = []
@@ -76,7 +78,9 @@ t1= time.time()
 x = np.arange(512)
 y =np.sin(2*np.pi*x)
 
-
+temp_port = serial.tools.list_ports.comports()
+ports = [i[0] for i in temp_port][::-1]
+print(ports)
 
 sampl_per=0.25
 #coef, freq = pywt.cwt(y, np.arange(1,15), 'morl', sampl_per)
@@ -160,6 +164,8 @@ if nn_test.check_existing_nn() is True:
     print("Correct label: "+str(flag[len(flag)-1:]))
 else:
     print("Trained Neural Network doesn't exist for "+user+". Please, train one first!")
+
+
 
 #    for kss in k:
 #        pprint.pprint(kss)

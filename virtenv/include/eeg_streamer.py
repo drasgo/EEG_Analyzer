@@ -9,6 +9,7 @@ import atexit
 class Eeg_Streamer():
 
     def __init__(self, port=None):
+        self.data_openbci = []
         self.default_settings = OrderedDict()
         self.current_settings = OrderedDict()
         if port is None:
@@ -58,40 +59,41 @@ class Eeg_Streamer():
     # dati sono salvati nei qui presenti outlet_eeg e outlet_aux
     def send(self, sample):
         try:
-            self.outlet_eeg.push_sample(sample.channel_data)
-            self.outlet_aux.push_sample(sample.aux_data)
+            self.data_openbci.append(sample.channel_data)
+            #self.outlet_eeg.push_sample(sample.channel_data)
+            #self.outlet_aux.push_sample(sample.aux_data)
         except:
             print("LSL Settings Error!\n")
 
     def create_lsl(self, ):
         random_id = random.randint(0,255)
         # default parameters
-        eeg_name = 'openbci_eeg'
-        eeg_type = 'EEG'
-        eeg_chan = self.eeg_channels
-        eeg_hz = self.sample_rate
-        eeg_data = 'float32'
-        eeg_id = 'openbci_eeg_id' + str(random_id)
-        aux_name = 'openbci_aux'
-        aux_type = 'AUX'
-        aux_chan = self.aux_channels
-        aux_hz = self.sample_rate
-        aux_data = 'float32'
-        aux_id = 'openbci_aux_id' + str(random_id)
+        self.eeg_name = 'openbci_eeg'
+        self.eeg_type = 'EEG'
+        self.eeg_chan = self.eeg_channels
+        self.eeg_hz = self.sample_rate
+        self.eeg_data = 'float32'
+        self.eeg_id = 'openbci_eeg_id' + str(random_id)
+        self.aux_name = 'openbci_aux'
+        self.aux_type = 'AUX'
+        self.aux_chan = self.aux_channels
+        self.aux_hz = self.sample_rate
+        self.aux_data = 'float32'
+        self.aux_id = 'openbci_aux_id' + str(random_id)
         #create StreamInfo
-        self.info_eeg = StreamInfo(eeg_name,eeg_type,eeg_chan,eeg_hz,eeg_data,eeg_id)
-        self.info_aux = StreamInfo(aux_name,aux_type,aux_chan,aux_hz,aux_data,aux_id)
+        self.info_eeg = StreamInfo(self.eeg_name,self.eeg_type,self.eeg_chan,self.eeg_hz,self.eeg_data,self.eeg_id)
+        self.info_aux = StreamInfo(self.aux_name,self.aux_type,self.aux_chan,self.aux_hz,self.aux_data,self.aux_id)
 
-        chns = self.info_eeg.desc().append_child('channels')
+        self.chns = self.info_eeg.desc().append_child('channels')
         if self.eeg_channels == 16:
-            labels = ['Fp1', 'Fp2', 'C3', 'C4', 'T5', 'T6', 'O1', 'O2', 'F7', 'F8', 'F3', 'F4', 'T3', 'T4', 'P3', 'P4']
+            self.labels = ['Fp1', 'Fp2', 'C3', 'C4', 'T5', 'T6', 'O1', 'O2', 'F7', 'F8', 'F3', 'F4', 'T3', 'T4', 'P3', 'P4']
         else:
-            labels = ['Fp1', 'Fp2', 'C3', 'C4', 'T5', 'T6', 'O1', 'O2']
-        for label in labels:
-            ch = chns.append_child("channel")
-            ch.append_child_value('label', label)
-            ch.append_child_value('unit', 'microvolts')
-            ch.append_child_value('type', 'EEG')
+            self.labels = ['T7', 'Cz', 'T8', 'F3', 'F4', 'C3', 'C4', 'Pz']
+        for label in self.labels:
+            self.ch = self.chns.append_child("channel")
+            self.ch.append_child_value('label', label)
+            self.ch.append_child_value('unit', 'microvolts')
+            self.ch.append_child_value('type', 'EEG')
 
         # additional Meta Data
         self.info_eeg.desc().append_child_value('manufacturer', 'OpenBCI Inc.')
@@ -126,8 +128,9 @@ class Eeg_Streamer():
         print ("Disconnecting...")
         atexit.register(self.cleanUp)
 
-    def start_streaming(self):
-        boardThread = threading.Thread(target=self.board.start_streaming, args=(self.send, -1))
+    def start_streaming(self, lapse=-1):
+        self.data_openbci = []
+        boardThread = threading.Thread(target=self.board.start_streaming, args=(self.send, lapse))
         boardThread.daemon = True  # will stop on exit
         boardThread.start()
         print("Current streaming: {} EEG channels and {} AUX channels at {} Hz\n".format(self.eeg_channels,
@@ -135,6 +138,8 @@ class Eeg_Streamer():
                                                                                          self.sample_rate))
     def stop_streaming(self):
         self.board.stop()
+        self.data_openbci = []
+        line = ""
         while self.board.ser.inWaiting():
             # print("doing this thing")
             c = self.board.ser.read().decode('utf-8', errors='replace')
