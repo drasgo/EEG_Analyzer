@@ -151,7 +151,7 @@ class NeuralNetwork(object):
             return "left"
 
     def run(self, coef, freq):
-        data = self.prepare_data(coef, freq)
+        data = self.prepare_data_test(coef, freq)
         new_input = tf.get_default_graph().get_tensor_by_name('input:0')
         new_output = tf.get_default_graph().get_tensor_by_name('output:0')
         output = [0, 1]
@@ -163,3 +163,17 @@ class NeuralNetwork(object):
             output = self.sess.run(new_output, feed_dict={new_input: batch_x})[0]
             i += 1
         return self.get_result(output)
+
+    def prepare_data_test(self, single_acq_data, single_acq_freq):
+        print("preparing data...")
+        chan_feed = []
+
+        for j in range(len(single_acq_data)):  # m chan --> 1 chan
+            single_chan_data = single_acq_data[j]
+            single_chan_freq = single_acq_freq[j]
+
+            for k in range(len(single_chan_data[0])):  # dimension of number of periods
+
+                for (single_value_freq, single_freq_data) in zip(single_chan_freq, single_chan_data):
+                    chan_feed.append(single_value_freq)
+                    chan_feed.append(single_freq_data[k])
