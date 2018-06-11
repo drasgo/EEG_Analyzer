@@ -19,7 +19,7 @@ def page_0():
     # gui for first page
     port = ser.serial_ports()
 
-    label1 = get_data("virtenv/resources/label1.txt")
+    label1 = get_data("virtenv/resources/label1.txt").replace(" \ ", "\n")
     label2 = get_data("virtenv/resources/label2.txt")
     label3 = get_data("virtenv/resources/label3.txt")
 
@@ -77,6 +77,7 @@ def page_1(port=None, name="", eeg_chosen="Mu waves"):
     sub_eeg_settings(lsl)
     sub_eeg_infos(lsl)
     app.addButton("Indietro", shift_page, 0, 0)
+    app.addLabel("User", "User: " + name, 1, 0)
     app.addButton("Settings", eeg_settings, 2, 0)
     app.addButton("Informations", eeg_infos, 4, 0)
 
@@ -237,7 +238,7 @@ def teach_nn(lsl, name):
 
         show_progress_train("Acquiring Data ...")
         temp = lsl.data_openbci
-        print("len1: "+str(len(temp))+", len2: "+str(len(temp[0])))
+#        print("len1: "+str(len(temp))+", len2: "+str(len(temp[0])))
         final = []
 
         for i in range(lsl.eeg_chan):
@@ -314,13 +315,13 @@ def wavelet_analysis(data):
         for chan in sampl:
             scale = np.arange(1, 15)
             temp_coef, temp_freq = pywt.cwt(chan, scale, "morl", (__signalAcquisitionTime__/_max_signal_length))
-            threshold = signal_to_noise_ratio(temp_coef)
+         #   threshold = signal_to_noise_ratio(temp_coef)
 
-            for j in range(len(temp_coef)):
-                for k in range(len(temp_coef[j])):
-                    if temp_coef[j][k] < threshold:
-                        print(str(temp_coef[j][k]) + "--> 0")
-                        temp_coef[j][k] = 0
+         #   for j in range(len(temp_coef)):
+         #       for k in range(len(temp_coef[j])):
+         #           if temp_coef[j][k] < threshold:
+         #               print(str(temp_coef[j][k]) + "--> 0")
+         #               temp_coef[j][k] = 0
 
             part_coef.append(temp_coef)
             part_freq.append(temp_freq)
@@ -378,16 +379,19 @@ def stop_testing(lsl):
 def test_nn(lsl, name):
     show_progress_test("Starting testing acquisition ...")
     nn = neu_net.NeuralNetwork(user=name, train=False)
+    new_lsl = lsl_streamer.Eeg_Streamer()
+    new_lsl.create_lsl()
     while stop_working is False:
         show_progress_test()
         show_progress_test("Adjusting ...")
 
         show_progress_test("Acquiring Data ...")
-        lsl.start_streaming(lapse=__signalAcquisitionTime__)
+        new_lsl.start_streaming(lapse=__signalAcquisitionTime__)
         time.sleep(4)
-        temp = lsl.data_openbci
+        temp = new_lsl.data_openbci
 
         final = []
+
         for i in range(lsl.eeg_chan):
             chn = []
             j = i
@@ -398,6 +402,7 @@ def test_nn(lsl, name):
                     chn.append(temp[j][i])
                 j += 1
             final.append(chn)
+        print("Finished gathering input. Input length: "+ str(len(final[0])))
 
         if len(final[0]) == _max_signal_length:
             show_progress_test("Done!")
@@ -406,6 +411,7 @@ def test_nn(lsl, name):
             coef, freq = wavelet_testing(final)
             result = nn.run(coef, freq)
             get_arrow(result)
+            time.sleep(1)
     show_progress_test("Finished testing")
     stop_testing(lsl)
 
@@ -417,13 +423,13 @@ def wavelet_testing(finaldata):
     for chan in finaldata:
         scale = np.arange(1, 15)
         temp_coef, temp_freq = pywt.cwt(chan, scale, "morl", (__signalAcquisitionTime__ / _max_signal_length))
-        threshold = signal_to_noise_ratio(temp_coef)
+     #   threshold = signal_to_noise_ratio(temp_coef)
 
-        for j in range(len(temp_coef)):
-            for k in range(len(temp_coef[j])):
-                if temp_coef[j][k] < threshold:
-                    print(str(temp_coef[j][k]) + "--> 0")
-                    temp_coef[j][k] = 0
+     #   for j in range(len(temp_coef)):
+     #       for k in range(len(temp_coef[j])):
+     #           if temp_coef[j][k] < threshold:
+     #               print(str(temp_coef[j][k]) + "--> 0")
+     #               temp_coef[j][k] = 0
 
         part_coef.append(temp_coef)
         part_freq.append(temp_freq)

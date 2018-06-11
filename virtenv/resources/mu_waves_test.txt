@@ -1,1 +1,5 @@
-test test test
+After the NN is trained,
+the subject needs to think about
+moving one arm, and the
+program will recognize it:
+_direction_
