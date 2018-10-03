@@ -19,7 +19,9 @@ class NeuralNetwork(object):
         else:
             self.sess = tf.Session()
             new_saver = tf.train.import_meta_graph(os.path.abspath(self.path_name + "/model.meta"))
+            print("imported meta graph")
             new_saver.restore(self.sess, tf.train.latest_checkpoint(os.path.abspath(self.path_name)))
+            print("restored last checkpoint")
 
 #from [acquisitions[channels[frequencies[values]]] = coef and [acquisitions[channels[values]]] = freq
 #to [fo, x00, f1, x01, ...] ... one long ass vector!

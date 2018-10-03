@@ -1,5 +1,5 @@
 from virtenv.include.appJar import gui
-import virtenv.include.com_serial as ser
+#import virtenv.include.com_serial as ser
 import virtenv.include.eeg_streamer as lsl_streamer
 import virtenv.include.neural_network as neu_net
 import webbrowser
@@ -12,114 +12,64 @@ import random
 from pylsl import StreamInlet, resolve_stream
 import numpy as np
 
+# Loading global variables
+# EEG wave acquisition time: 3 sec
 __signalAcquisitionTime__ = 3
+# EEG wave maximum lenght (in terms of samples): 700 samples
 _max_signal_length = 700
+# Flag for EEG association
+loaded = False
+# Teaching flag
+stop_teaching = False
+# Testing/working flag
+stop_working = False
 
-def page_0():
-    # gui for first page
-    port = ser.serial_ports()
+
+# gui for first page
+def main_page():
+    # TODO (done): Implement support to port choice
+    # port = ser.serial_ports()
 
     label1 = get_data("virtenv/resources/label1.txt").replace(" \ ", "\n")
-    label2 = get_data("virtenv/resources/label2.txt")
-    label3 = get_data("virtenv/resources/label3.txt")
 
-    app.addButton("Info", info, 2, 0)
+    app.startLabelFrame("EEG Infos", 0, 0)
 
     app.addLabelEntry("Name: ", 0, 0)
 
-    app.addButton("Type1", lambda: select(lb="Type1", nome=app.getEntry("Name: ")), 0, 3)
+    app.addLabelEntry("Wave: ", 1, 0)
+    app.addButton("to EEG", lambda: select(lb=app.getEntry("Wave: "), nome=app.getEntry("Name: ")), 2, 0)
+    app.setButton("to EEG", "Go To")
+
+    app.stopLabelFrame()
+
+    app.addButton("Info", lambda: info(), 2, 0)
+
+    app.addButton("Type1", lambda: app.setEntry("Wave: ", "Type1"), 1, 3)
     app.setButton("Type1", "Mu Waves")
-    app.addLabel("descr1", label1, 1, 3)
+    app.addLabel("descr1", label1, 0, 3)
 
-    app.addButton("Type2", do_nothing, 0, 5)
+    # TODO: Implement other EEG mechanisms (P300, Visual Imagery, ..)
+    # Used when implemented also other EEG mechanisms
+    label2 = get_data("virtenv/resources/label2.txt")
+    label3 = get_data("virtenv/resources/label3.txt")
+
+    app.addButton("Type2", do_nothing, 1, 5)
     app.setButtonState("Type2", "disabled")
-    app.addLabel("descr2", label2, 1, 5)
+    app.addLabel("descr2", label2, 0, 5)
 
-    app.addButton("Type3", do_nothing, 0, 7)
+    app.addButton("Type3", do_nothing, 1, 7)
     app.setButtonState("Type3", "disabled")
-    app.addLabel("descr3", label3, 1, 7)
+    app.addLabel("descr3", label3, 0, 7)
+
+    #
 
     app.addVerticalSeparator(0, 2, rowspan=5)
     app.addVerticalSeparator(0, 4, rowspan=5)
     app.addVerticalSeparator(0, 6, rowspan=5)
-    app.addVerticalSeparator(0, 8, rowspan=5)
 
     app.setLabelRelief("descr1", app.SUNKEN)
     app.setLabelRelief("descr2", app.SUNKEN)
     app.setLabelRelief("descr3", app.SUNKEN)
-
-
-def do_nothing():
-    print("nothing done here")
-
-
-def info(bt):
-    webbrowser.open("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
-
-
-def loading_gif():
-    global loaded
-    app.addImage("Loading", os.path.abspath("virtenv/resources/loading.gif"))
-    if loaded is True:
-        app.removeImage("Loading")
-
-
-def page_1(port=None, name="", eeg_chosen="Mu waves"):
-    global loaded
-    app.registerEvent(loading_gif)
-    if port is None or port == "" or port == "Standard":
-        lsl = lsl_streamer.Eeg_Streamer()
-    else:
-        lsl = lsl_streamer.Eeg_Streamer(port)
-
-    lsl.create_lsl()
-    loaded = True
-    sub_eeg_settings(lsl)
-    sub_eeg_infos(lsl)
-    app.addButton("Indietro", shift_page, 0, 0)
-    app.addLabel("User", "User: " + name, 1, 0)
-    app.addButton("Settings", eeg_settings, 2, 0)
-    app.addButton("Informations", eeg_infos, 4, 0)
-
-    app.addLabel("lab11", eeg_chosen, 0, 4)
-    app.addButton("?", external_link, 0, 6)
-
-    app.addLabel("description", "", 1, 3, 3, 2)
-    app.setLabelRelief("description", app.SUNKEN)
-    show_progress_train()# Set description label text
-    # app.addImage("left arrow", get_arrow("left"))
-
-    app.addImage("arrow", os.path.abspath("virtenv/resources/waiting.gif"), 1, 6)
-
-    app.addLabel("Teach", "Teach NN", 3, 3)
-    app.addButton("Start Teaching", lambda: start_teaching(lsl, name), 4, 3)
-    app.addButton("Stop Teaching", lambda: stop_acq_data_teach_nn(lsl), 4, 4)
-    app.addLabel("Teach_NN", "**", 5, 3)
-
-    app.addLabel("FireNN", "Fire up", 3, 6)
-    app.addButton("Start NN", lambda: start_testing(lsl, name), 4, 6)
-    app.addButton("Stop NN", lambda: stop_testing(lsl), 5, 6)
-
-    app.addVerticalSeparator(3, 5, rowspan=3)
-    app.addVerticalSeparator(0, 2, rowspan=6)
-    app.addVerticalSeparator(0, 7, rowspan=6)
-
-
-def err_page(problem=""):
-    app.addTextArea("Attenzione")
-    app.setTextArea("Attenzione", problem)
-
-
-def external_link():
-    webbrowser.open("https://en.wikipedia.org/wiki/Mu_wave")
-
-
-def get_arrow(oor):
-    temp = "virtenv/resources/"
-    if oor == "right" or oor == "left":
-        app.setImage("arrow", os.path.abspath(temp+oor+"_arrow.gif"))
-    else:
-        app.setImage("arrow", os.path.abspath(temp + oor + ".gif"))
 
 
 def shift_page(bt="", port=None, nome="", err_mess=""):
@@ -143,15 +93,88 @@ def shift_page(bt="", port=None, nome="", err_mess=""):
         except:
             pass
         app.removeAllWidgets()
-        page_0()
+        main_page()
     else:
         if err_mess != "":
             app.removeAllWidgets()
             err_page(problem=err_mess)
 
 
-def eeg_infos():
-    app.showSubWindow("infos")
+# Used to define the behaviour of what is not implemented yet
+def do_nothing():
+    print("nothing done here")
+
+
+# Redirects to info web page
+def info():
+    webbrowser.open("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+
+
+def select(lb, nome=""):
+    shift_page(lb, port=None, nome=nome)
+
+
+# TODO: Fix loading GIF during initial EEG connection
+def loading_gif():
+    global loaded
+    app.addImage("Loading", os.path.abspath("virtenv/resources/loading.gif"))
+    if loaded is True:
+        app.removeImage("Loading")
+
+
+# First page GUI (it holds infos, training, testing, etc)
+def page_1(port=None, name="", eeg_chosen="Mu waves"):
+    global loaded
+    # TODO: Fix loading GIF
+    app.registerEvent(loading_gif)
+
+    # if port is None or port == "" or port == "Standard":
+    #     lsl = lsl_streamer.Eeg_Streamer()
+    # else:
+    #     lsl = lsl_streamer.Eeg_Streamer(port)
+    #
+    # lsl.create_lsl()
+
+    loaded = True
+
+    # sub_eeg_settings(lsl)
+    # sub_eeg_infos(lsl)
+
+    app.addButton("Indietro", shift_page, 0, 0)
+    app.addLabel("User", "User: " + name, 1, 0)
+    app.addButton("Settings", eeg_settings, 2, 0)
+    app.addButton("Informations", eeg_infos, 4, 0)
+
+    app.addLabel("lab11", eeg_chosen, 0, 4)
+    app.addButton("?", external_link, 0, 6)
+
+    app.addLabel("description", "", 1, 3, 2, 1)
+    app.setLabelRelief("description", app.SUNKEN)
+    show_progress_train()
+
+    # Set description label text
+    # app.addImage("left arrow", get_arrow("left"))
+
+    app.addImage("arrow", os.path.abspath("virtenv/resources/waiting.gif"), 1, 6)
+
+    app.addLabel("Teach", "Teach NN", 3, 3)
+    app.addButton("Start Teaching", lambda: start_teaching(lsl, name), 4, 3)
+    app.addButton("Stop Teaching", lambda: stop_acq_data_teach_nn(lsl), 4, 4)
+    app.addLabel("Teach_NN", "**", 5, 3)
+
+    app.addLabel("FireNN", "Fire up", 3, 6)
+    app.addButton("Start NN", lambda: start_testing(lsl, name), 4, 6)
+    app.addButton("Stop NN", lambda: stop_testing(lsl), 5, 6)
+
+    app.addVerticalSeparator(3, 5, rowspan=3)
+    app.addVerticalSeparator(0, 2, rowspan=6)
+    app.addVerticalSeparator(0, 7, rowspan=6)
+
+
+def sub_eeg_settings(lsl):
+    app.startSubWindow("settings", "Settings")
+    app.addLabel("lb1", "EEG Channels Setting")
+    app.stopSubWindow()
 
 
 def sub_eeg_infos(lsl):
@@ -161,14 +184,29 @@ def sub_eeg_infos(lsl):
     app.stopSubWindow()
 
 
+def eeg_infos():
+    app.showSubWindow("infos")
+
+
 def eeg_settings():
     app.showSubWindow("settings")
 
 
-def sub_eeg_settings(lsl):
-    app.startSubWindow("settings", "Settings")
-    app.addLabel("lb1", "EEG Channels Setting")
-    app.stopSubWindow()
+def err_page(problem=""):
+    app.addTextArea("Attenzione")
+    app.setTextArea("Attenzione", problem)
+
+
+def external_link():
+    webbrowser.open("https://en.wikipedia.org/wiki/Mu_wave")
+
+
+def get_arrow(oor):
+    temp = "virtenv/resources/"
+    if oor == "right" or oor == "left":
+        app.setImage("arrow", os.path.abspath(temp+oor+"_arrow.gif"))
+    else:
+        app.setImage("arrow", os.path.abspath(temp + oor + ".gif"))
 
 
 def get_data(path=""):
@@ -178,10 +216,6 @@ def get_data(path=""):
         else:
             data = op.read()
     return data
-
-
-def select(lb, nome=""):
-    shift_page(lb, port=None, nome=nome)
 
 
 def start_teaching(lsl, name):
@@ -315,13 +349,13 @@ def wavelet_analysis(data):
         for chan in sampl:
             scale = np.arange(1, 15)
             temp_coef, temp_freq = pywt.cwt(chan, scale, "morl", (__signalAcquisitionTime__/_max_signal_length))
-         #   threshold = signal_to_noise_ratio(temp_coef)
+            threshold = signal_to_noise_ratio(temp_coef)
 
-         #   for j in range(len(temp_coef)):
-         #       for k in range(len(temp_coef[j])):
-         #           if temp_coef[j][k] < threshold:
-         #               print(str(temp_coef[j][k]) + "--> 0")
-         #               temp_coef[j][k] = 0
+            for j in range(len(temp_coef)):
+               for k in range(len(temp_coef[j])):
+                   if temp_coef[j][k] < threshold:
+#                       print(str(temp_coef[j][k]) + "--> 0")
+                       temp_coef[j][k] = 0
 
             part_coef.append(temp_coef)
             part_freq.append(temp_freq)
@@ -423,13 +457,13 @@ def wavelet_testing(finaldata):
     for chan in finaldata:
         scale = np.arange(1, 15)
         temp_coef, temp_freq = pywt.cwt(chan, scale, "morl", (__signalAcquisitionTime__ / _max_signal_length))
-     #   threshold = signal_to_noise_ratio(temp_coef)
+        threshold = signal_to_noise_ratio(temp_coef)
 
-     #   for j in range(len(temp_coef)):
-     #       for k in range(len(temp_coef[j])):
-     #           if temp_coef[j][k] < threshold:
-     #               print(str(temp_coef[j][k]) + "--> 0")
-     #               temp_coef[j][k] = 0
+        for j in range(len(temp_coef)):
+           for k in range(len(temp_coef[j])):
+               if temp_coef[j][k] < threshold:
+#                  print(str(temp_coef[j][k]) + "--> 0")
+                   temp_coef[j][k] = 0
 
         part_coef.append(temp_coef)
         part_freq.append(temp_freq)
@@ -437,10 +471,8 @@ def wavelet_testing(finaldata):
     return part_coef, part_freq
 
 
-loaded = False
-stop_teaching = False
-stop_working = False
+# Loading GUI
 app = gui("Pagina Principale", "1000x550")
 app.setResizable(False)
-page_0()
+main_page()
 app.go()
